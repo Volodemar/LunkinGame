@@ -12,47 +12,64 @@ public class Train : MonoBehaviour
     private BaseNode currentNode;
     private BaseNode targetNode;
     private List<BaseNode> path;
-    private float progress = 0f;
+
+    private float _progress = 0f;
+    private int _currentWaypoint = 0;
+
+    // Замедление движения поездов для лучшего наблюдения
+    private const float _movementSpeedFactor = 0.1f;
+
+    GameLevelController _gameLevel;
 
     public void Init(PathManager pathManager, BaseNode startNode)
     {
+        _gameLevel = LevelController.Instance as GameLevelController;
+
         this.pathManager = pathManager;
 
         this.currentNode = startNode;
 
         this.targetNode = pathManager.GetRandomNode();
 
-        this.path = pathManager.GetCachedPath(currentNode, targetNode);
+        this.path = pathManager.GetCachedShortPath(currentNode, targetNode);
     }
 
     private void Update()
     {
-        if (path == null || path.Count < 2) return;
+        if (path == null) 
+            return;
 
-        progress += Time.deltaTime * speed / GetTotalPathLength();
-        progress = Mathf.Clamp01(progress);
+        int nextWaypoint = _currentWaypoint + 1;
 
-        Vector3 startPos = path[0].transform.position;
-        Vector3 endPos = path[1].transform.position;
-        transform.position = Vector3.Lerp(startPos, endPos, progress);
-
-        if (progress >= 1f)
+        if (nextWaypoint > path.Count-1)
         {
-            // Достигли конечной ноды, выбираем новую цель
+            // Достигли конца пути 
+            _currentWaypoint = 0;
+            _progress = 0;
+
+            // Запрашиваем новый путь из текущей позиции
             currentNode = targetNode;
             targetNode = pathManager.GetRandomNode();
-            path = pathManager.GetCachedPath(currentNode, targetNode);
-            progress = 0f;
-        }
-    }
+            path = pathManager.GetCachedShortPath(currentNode, targetNode);
 
-    private float GetTotalPathLength()
-    {
-        float totalLength = 0f;
-        for (int i = 0; i < path.Count - 1; i++)
-        {
-            totalLength += pathManager.GetPathLength(path[i], path[i + 1]);
         }
-        return totalLength;
+        else
+        {
+            float pathLength = pathManager.GetPathLength(path[_currentWaypoint], path[_currentWaypoint + 1]);
+
+            _progress += Time.deltaTime * _movementSpeedFactor * speed / pathLength;
+            _progress = Mathf.Clamp01(_progress);
+
+            Vector3 startPos = path[_currentWaypoint].transform.position;
+            Vector3 endPos = path[nextWaypoint].transform.position;
+            this.transform.position = Vector3.Lerp(startPos, endPos, _progress);
+
+            if (_progress >= 1f)
+            {
+                // Достигли ноды, выбираем новую цель
+                _currentWaypoint = nextWaypoint;
+                _progress = 0;
+            }
+        }
     }
 }

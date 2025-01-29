@@ -14,29 +14,22 @@ public class PathManager : MonoBehaviour
         public float pathLength; 
     }
 
-    // Кеш нод
+    // Настроенные пути графа 
+    public List<Path> paths = new List<Path>(); 
+
+    // Кеш нод для оптимизации
     private List<BaseNode> cachedNodes = new List<BaseNode>();
 
-    // Кеш путей между нодами
-    private List<Path> paths = new List<Path>(); 
-
-    // Кеш всех кротчайших путей из А в Б
-    private Dictionary<(BaseNode, BaseNode), List<BaseNode>> pathCache = new Dictionary<(BaseNode, BaseNode), List<BaseNode>>();
+    // Кеш всех кротчайших путей из А в Б для оптимизации
+    private Dictionary<(BaseNode, BaseNode), List<BaseNode>> pathShortCache = new Dictionary<(BaseNode, BaseNode), List<BaseNode>>();
 
     public void Init()
     {
         CacheAllNodes();
-    }
 
-    /// <summary>
-    /// Вернуть случайную ноду
-    /// </summary>
-    public BaseNode GetRandomNode()
-    {
-        if (cachedNodes.Count == 0) 
-            return null;
+        InitializeNodes();
 
-        return cachedNodes[Random.Range(0, cachedNodes.Count)];
+        CacheAllShortestPaths();
     }
 
     private void CacheAllNodes()
@@ -48,9 +41,19 @@ public class PathManager : MonoBehaviour
         cachedNodes.AddRange(nodes);
     }
 
+    private void InitializeNodes()
+    {
+        // Ноды заполняют данные о соседних нодах на основе путей графа
+        foreach(BaseNode node in cachedNodes)
+        {
+            node.Init(this);
+        }
+    }
+
     private void CacheAllShortestPaths()
     {
-        pathCache.Clear();
+        pathShortCache.Clear();
+
         foreach (var startNode in cachedNodes)
         {
             foreach (var endNode in cachedNodes)
@@ -58,31 +61,89 @@ public class PathManager : MonoBehaviour
                 if (startNode != endNode)
                 {
                     List<BaseNode> shortestPath = FindShortestPath(startNode, endNode);
-                    pathCache[(startNode, endNode)] = shortestPath;
+
+                    pathShortCache[(startNode, endNode)] = shortestPath;
                 }
             }
         }
     }
 
-    private List<BaseNode> FindShortestPath(BaseNode start, BaseNode end)
+    /// <summary>
+    /// Метод для поиска кратчайшего пути startNode до endNode
+    /// </summary>
+    public List<BaseNode> FindShortestPath(BaseNode startNode, BaseNode endNode)
     {
-        return new List<BaseNode>(); 
-    }
+        List<List<BaseNode>> allPaths = FindAllPaths(startNode, endNode);
 
-    private List<BaseNode> ReconstructPath(Dictionary<BaseNode, BaseNode> cameFrom, BaseNode current)
-    {
-        var totalPath = new List<BaseNode> { current };
-        while (cameFrom.ContainsKey(current))
+        List<BaseNode> shortestPath = null;
+        float minPathLength = float.MaxValue;
+
+        float currentPathLength = 0;
+        foreach (List<BaseNode> path in allPaths)
         {
-            current = cameFrom[current];
-            totalPath.Insert(0, current);
+            currentPathLength = 0;
+            for (int i = 0; i < path.Count - 1; i++)
+            {
+                currentPathLength += GetPathLength(path[i], path[i + 1]);
+            }
+
+            if (currentPathLength < minPathLength)
+            {
+                minPathLength = currentPathLength;
+                shortestPath = path;
+            }
         }
-        return totalPath;
+
+        return shortestPath;
     }
 
-    private float Heuristic(BaseNode a, BaseNode b)
+    /// <summary>
+    /// Метод для поиска всех путей от startNode до endNode
+    /// </summary>
+    private List<List<BaseNode>> FindAllPaths(BaseNode startNode, BaseNode endNode)
     {
-        return Vector3.Distance(a.transform.position, b.transform.position);
+        List<List<BaseNode>> allPaths = new List<List<BaseNode>>();
+        List<BaseNode> currentPath = new List<BaseNode>();
+        HashSet<BaseNode> visited = new HashSet<BaseNode>();
+
+        DFS(startNode, endNode, currentPath, allPaths, visited);
+
+        return allPaths;
+    }
+
+    /// <summary>
+    /// Рекурсивный метод поиска в глубину
+    /// </summary>
+    private void DFS(BaseNode current, BaseNode target, List<BaseNode> currentPath, List<List<BaseNode>> allPaths, HashSet<BaseNode> visited)
+    {
+        visited.Add(current);
+        currentPath.Add(current);
+
+        if (current == target)
+        {
+            // Находим путь до текущей точки и добавляем его в список всех путей
+            allPaths.Add(new List<BaseNode>(currentPath));
+        }
+        else
+        {
+            // Инициализируем соседей текущего узла, если они ещё не инициализированы
+            if (current.neighborNodes == null || current.neighborNodes.Length == 0)
+            {
+                current.Init(this);
+            }
+
+            foreach (var neighbor in current.neighborNodes)
+            {
+                if (!visited.Contains(neighbor))
+                {
+                    DFS(neighbor, target, currentPath, allPaths, visited);
+                }
+            }
+        }
+
+        // Отмена посещения текущего узла и удаление его из текущего пути
+        visited.Remove(current);
+        currentPath.RemoveAt(currentPath.Count - 1);
     }
 
     public float GetPathLength(BaseNode a, BaseNode b)
@@ -97,13 +158,24 @@ public class PathManager : MonoBehaviour
         return float.MaxValue; 
     }
 
-    public List<BaseNode> GetCachedPath(BaseNode start, BaseNode end)
+    public List<BaseNode> GetCachedShortPath(BaseNode start, BaseNode end)
     {
-        if (pathCache.TryGetValue((start, end), out var path))
+        if (pathShortCache.TryGetValue((start, end), out var path))
         {
             return path;
         }
         return new List<BaseNode>(); 
+    }
+
+    /// <summary>
+    /// Вернуть случайную ноду
+    /// </summary>
+    public BaseNode GetRandomNode()
+    {
+        if (cachedNodes.Count == 0) 
+            return null;
+
+        return cachedNodes[Random.Range(0, cachedNodes.Count)];
     }
 
     private void OnDrawGizmos()
@@ -133,4 +205,35 @@ public class PathManager : MonoBehaviour
             }
         }
     }
+
+    /// <summary>
+    /// Выводим найденные пути в лог
+    /// </summary>
+    private void DebugLogPrintPaths(List<List<BaseNode>> paths)
+    {
+		foreach (var path in paths)
+		{
+			string pathStr = "";
+			foreach (var node in path)
+			{
+				pathStr += node.name + " -> ";
+			}
+			pathStr = pathStr.TrimEnd(' ', '-', '>');
+			Debug.Log("Путь: " + pathStr);
+		}
+	}
+
+    /// <summary>
+    /// Вывод пути в лог
+    /// </summary>
+    private void DebugLogPrintPath(List<BaseNode> path)
+    {
+		string pathStr = "";
+		foreach (var node in path)
+		{
+			pathStr += node.name + " -> ";
+		}
+		pathStr = pathStr.TrimEnd(' ', '-', '>');
+		Debug.Log("Путь: " + pathStr);
+	}
 }

@@ -29,7 +29,7 @@ public class TrainManager : MonoBehaviour
 
 		if (randomNode != null)
 		{
-			Train train = Instantiate(trainPrefab, randomNode.transform.position, Quaternion.identity, this.transform).AddComponent<Train>();
+			Train train = Instantiate(trainPrefab, randomNode.transform.position, Quaternion.identity, this.transform).GetComponent<Train>();
 
 			train.Init(pathManager, randomNode);
 
