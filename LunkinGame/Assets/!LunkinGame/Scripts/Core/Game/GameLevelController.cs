@@ -5,7 +5,8 @@ using UnityEngine;
 /// </summary>	
 public class GameLevelController : LevelController
 {
-	[SerializeField] private PathManager pathManager;
+	public PathManager pathManager;
+	public TrainManager trainManager;
 
 	/// <summary>
 	/// Инициализируем уровень
@@ -13,5 +14,10 @@ public class GameLevelController : LevelController
 	public override void OnLevelInit()
 	{
 		base.OnLevelInit();
+
+		pathManager.Init();
+
+		trainManager.Init();
+
 	}
 }
