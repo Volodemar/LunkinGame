@@ -25,11 +25,15 @@ public class Train : MonoBehaviour
 
     private bool _isManing = false;
 
-    // Замедление движения поездов для лучшего наблюдения
-    private const float _movementSpeedFactor = 0.1f;
+    // Коэфициент скорости поездов, не влияет на расчеты путей
+    private float _speedFactor = 0.1f;
+
+	GameLevelController _gameLevel;
 
     public void Init(PathManager pathManager, BaseNode startNode)
     {
+        _gameLevel = LevelController.Instance as GameLevelController;
+
         _pathManager = pathManager;
 
         _currentNode = startNode;
@@ -70,13 +74,13 @@ public class Train : MonoBehaviour
             _path = _pathManager.GetCachedShortPath(_currentNode, _targetNode);
 
             // Поворачиваем в дефолтное направление, если следующей точки нет
-            transform.rotation = Quaternion.identity;
+            this.transform.rotation = Quaternion.identity;
         }
         else
         {
             float pathLength = _pathManager.GetPathSectionLength(_path[_currentWaypoint], _path[_currentWaypoint + 1]);
 
-            _progress += Time.deltaTime * _movementSpeedFactor * speed / pathLength;
+            _progress += Time.deltaTime * _speedFactor * speed / pathLength;
             _progress = Mathf.Clamp01(_progress);
 
             Vector3 startPos = _path[_currentWaypoint].transform.position;
@@ -100,17 +104,34 @@ public class Train : MonoBehaviour
                 Base theBase = _path[_currentWaypoint] as Base;
 
                 // Если мы прибыли в шахту
-                if (theMine != null)
+                if (theMine != null && _countResource == 0)
                 {
-                    // Запускаем майнинг в шахте
-                    StartCoroutine(WaitAtMine(theMine));
+                    // Поезду разрешено/запрещено пропускать шахту
+                    if (_gameLevel.IsTrainСanSkipMine && _currentWaypoint == _path.Count-1)
+                    {
+                        StartCoroutine(WaitAtMine(theMine));
+                    }
+                    else
+                    {
+                        StartCoroutine(WaitAtMine(theMine));
+                    }
                 }
                 // Если прибыли в базу
-                else if(theBase != null)
+                else if(theBase != null && _countResource > 0)
                 {
-                    LevelData.ModifyTotalResources(theBase.resourceMultiplier * _countResource);
+                    // Поезду разрешено/запрещено пропускать базу
+                    if (_gameLevel.IsTrainСanSkipBase && _currentWaypoint == _path.Count-1)
+                    {
+                        LevelData.ModifyTotalResources(theBase.resourceMultiplier * _countResource);
 
-                    _countResource = 0;
+                        _countResource = 0;
+                    }
+                    else
+                    {
+                        LevelData.ModifyTotalResources(theBase.resourceMultiplier * _countResource);
+
+                        _countResource = 0;
+                    }
                 }
             }
         }
@@ -124,7 +145,7 @@ public class Train : MonoBehaviour
         _isManing = true;
 
         // Поворачиваем в дефолтное направление
-        transform.rotation = Quaternion.identity;
+        this.transform.rotation = Quaternion.identity;
 
         float waitTime = mine.miningTimeMultiplier * speedMine;
 
@@ -133,6 +154,11 @@ public class Train : MonoBehaviour
         _countResource += 1f;
 
         _isManing = false;
+    }
+
+    public void SetSpeedFactor(float value)
+    {
+        _speedFactor = value;
     }
 
 #if UNITY_EDITOR

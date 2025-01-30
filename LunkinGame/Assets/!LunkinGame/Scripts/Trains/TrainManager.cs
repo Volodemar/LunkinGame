@@ -1,6 +1,6 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using NaughtyAttributes;
 
 /// <summary>
 /// Менеджер поездов
@@ -9,8 +9,11 @@ public class TrainManager : MonoBehaviour
 {
     [SerializeField] private GameObject[] trainPrefabs;
 
-    [SerializeField] private GameObject testTrainPrefab;
-    [SerializeField] private BaseNode testStartNode;
+    [BoxGroup("Тест поезда"), SerializeField] private GameObject testTrainPrefab;
+    [BoxGroup("Тест поезда"), SerializeField] private BaseNode testStartNode;
+
+    // Замедление/ускорение движения поездов для лучшего наблюдения
+    [BoxGroup("Настройки поездов"), SerializeField] private float speedFactor = 0.1f;
 
     private List<Train> _trains = new List<Train>();
 
@@ -36,6 +39,7 @@ public class TrainManager : MonoBehaviour
 			    Train train = Instantiate(trainPrefab, randomNode.transform.position, Quaternion.identity, this.transform).GetComponent<Train>();
 
 			    train.Init(pathManager, randomNode);
+                train.SetSpeedFactor(speedFactor);
 
                 _trains.Add(train);
             }
@@ -45,8 +49,18 @@ public class TrainManager : MonoBehaviour
 			Train train = Instantiate(testTrainPrefab, testStartNode.transform.position, Quaternion.identity, this.transform).GetComponent<Train>();
 
 			train.Init(pathManager, testStartNode);
+            train.SetSpeedFactor(speedFactor);
 
             _trains.Add(train);
+        }
+    }
+
+    [Button("Обновить скорость поездов")]
+    private void UpdateSpeedFactor()
+    {
+        foreach(Train train in _trains)
+        {
+            train.SetSpeedFactor(speedFactor);
         }
     }
 }

@@ -12,15 +12,15 @@ public class BaseNode : MonoBehaviour
 	{
         List<BaseNode> neighbors = new List<BaseNode>();
 
-        foreach (var path in pathManager.paths)
+        foreach (var section in pathManager.sections)
         {
-            if (path.nodeA == this)
+            if (section.nodeA == this)
             {
-                neighbors.Add(path.nodeB);
+                neighbors.Add(section.nodeB);
             }
-            else if (path.nodeB == this)
+            else if (section.nodeB == this)
             {
-                neighbors.Add(path.nodeA);
+                neighbors.Add(section.nodeA);
             }
         }
 

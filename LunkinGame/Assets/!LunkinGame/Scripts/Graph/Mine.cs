@@ -21,5 +21,4 @@ public class Mine : BaseNode
         // Отрисовка текста с множителем
         UnityEditor.Handles.Label(transform.position + Vector3.right * 0.6f, $"{miningTimeMultiplier}x", style);
     }
-
 }

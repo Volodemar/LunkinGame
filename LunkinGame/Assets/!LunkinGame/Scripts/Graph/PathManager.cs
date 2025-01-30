@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
+using NaughtyAttributes;
+using System.Linq;
 
 /// <summary>
 /// Описание нового класса
@@ -15,7 +17,8 @@ public class PathManager : MonoBehaviour
     }
 
     // Настроенные пути графа 
-    public List<Path> paths = new List<Path>(); 
+    [OnValueChanged("OnSectionsChanged")]
+    public List<Path> sections = new List<Path>(); 
 
     // Кеш нод для оптимизации
     private List<BaseNode> cachedNodes = new List<BaseNode>();
@@ -23,8 +26,12 @@ public class PathManager : MonoBehaviour
     // Кеш всех кротчайших путей из А в Б для оптимизации
     private Dictionary<(BaseNode, BaseNode), List<BaseNode>> pathShortCache = new Dictionary<(BaseNode, BaseNode), List<BaseNode>>();
 
+	GameLevelController _gameLevel;
+
     public void Init()
     {
+        _gameLevel = LevelController.Instance as GameLevelController;
+
         CacheAllNodes();
 
         InitializeNodes();
@@ -148,11 +155,11 @@ public class PathManager : MonoBehaviour
 
     public float GetPathSectionLength(BaseNode a, BaseNode b)
     {
-        foreach (var path in paths)
+        foreach (var section in sections)
         {
-            if ((path.nodeA == a && path.nodeB == b) || (path.nodeA == b && path.nodeB == a))
+            if ((section.nodeA == a && section.nodeB == b) || (section.nodeA == b && section.nodeB == a))
             {
-                return path.pathLength;
+                return section.pathLength;
             }
         }
         return float.MaxValue; 
@@ -224,7 +231,19 @@ public class PathManager : MonoBehaviour
             {
                 // Получаем путь от текущей позиции до шахты
                 List<BaseNode> pathToMine = GetCachedShortPath(currentNode, theMine);
-                float distanceToMine = GetFullPathLength(pathToMine);
+
+                // Если поезда не могут пропускать шахты, то поезд выкопает лишний груз до конечной точки пути
+                if (!_gameLevel.IsTrainСanSkipMine)
+                {
+				    // Проверяем, что на пути до шахты нет других шахт
+				    bool hasOtherMinesOnPath = pathToMine.Any(node => node is Mine && node != theMine);
+				    if (hasOtherMinesOnPath)
+				    {
+					    continue; // Пропускаем т.к., на пути есть другая шахта
+				    }
+                }
+
+				float distanceToMine = GetFullPathLength(pathToMine);
 
                 // Получаем путь от шахты до базы
                 List<BaseNode> pathToBase = GetCachedShortPath(theMine, theBase);
@@ -272,6 +291,18 @@ public class PathManager : MonoBehaviour
         {
             // Получаем путь от текущей позиции до базы
             List<BaseNode> pathToBase = GetCachedShortPath(currentNode, theBase);
+
+            // Если поезда не могут пропускать базы, то поезд может потерять груз до конечной точки пути
+            if (!_gameLevel.IsTrainСanSkipBase)
+            {
+				// Проверяем, что на пути до базы нет других баз
+				bool hasOtherBaseOnPath = pathToBase.Any(node => node is Base && node != theBase);
+				if (hasOtherBaseOnPath)
+				{
+					continue; // Пропускаем т.к. на пути есть другая база
+				}
+			}
+
             float distanceToBase = GetFullPathLength(pathToBase);
 
             float deliveryEfficiency = 0;
@@ -303,15 +334,25 @@ public class PathManager : MonoBehaviour
         return bestBaseNode;
     }
 
+    // Метод, вызывается при изменении путей, для перерасчета коротких путей и добаленных нод
+    private void OnSectionsChanged()
+    {
+        CacheAllNodes();
+
+        InitializeNodes();
+
+        CacheAllShortestPaths();
+    }
+
     private void OnDrawGizmos()
     {
-		foreach (var path in paths)
+		foreach (var section in sections)
 		{
-			if (path.nodeA != null && path.nodeB != null)
+			if (section.nodeA != null && section.nodeB != null)
 			{
 				// Отрисовка линии между нодами
 				Gizmos.color = Color.black;
-				Gizmos.DrawLine(path.nodeA.transform.position, path.nodeB.transform.position);
+				Gizmos.DrawLine(section.nodeA.transform.position, section.nodeB.transform.position);
 
 				// Стиль
 				GUIStyle style = new GUIStyle();
@@ -320,13 +361,13 @@ public class PathManager : MonoBehaviour
 				style.alignment = TextAnchor.MiddleCenter;
 
 				// Рассчитываем красивую позицию текста
-				Vector3 midpoint = (path.nodeA.transform.position + path.nodeB.transform.position) / 2;
-				Vector3 lineDirection = (path.nodeB.transform.position - path.nodeA.transform.position).normalized;
+				Vector3 midpoint = (section.nodeA.transform.position + section.nodeB.transform.position) / 2;
+				Vector3 lineDirection = (section.nodeB.transform.position - section.nodeA.transform.position).normalized;
 				Vector3 perpendicular = new Vector3(-lineDirection.y, lineDirection.x, lineDirection.z).normalized;
 				Vector3 textPosition = midpoint + perpendicular * 0.25f;
 
 				// Отрисовка текста с длиной пути
-				UnityEditor.Handles.Label(textPosition, $"{path.pathLength}", style);
+				UnityEditor.Handles.Label(textPosition, $"{section.pathLength}", style);
 			}
 		}
 	}

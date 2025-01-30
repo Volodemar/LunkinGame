@@ -1,3 +1,4 @@
+using NaughtyAttributes;
 using UnityEngine;
 
 /// <summary>
@@ -7,6 +8,12 @@ public class GameLevelController : LevelController
 {
 	public PathManager pathManager;
 	public TrainManager trainManager;
+
+	[BoxGroup("Настройки логистики"), SerializeField] private bool _isTrainСanSkipMine;
+    public bool IsTrainСanSkipMine => _isTrainСanSkipMine;
+
+	[BoxGroup("Настройки логистики"), SerializeField] private bool _isTrainСanSkipBase;
+    public bool IsTrainСanSkipBase => _isTrainСanSkipBase;
 
 	/// <summary>
 	/// Инициализируем уровень
@@ -18,6 +25,5 @@ public class GameLevelController : LevelController
 		pathManager.Init();
 
 		trainManager.Init();
-
 	}
 }
