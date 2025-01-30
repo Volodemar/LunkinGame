@@ -75,6 +75,18 @@ PrefabInstance:
       propertyPath: pathColor.r
       value: 0.47058824
       objectReference: {fileID: 0}
+    - target: {fileID: 1473803042499573982, guid: 422bdd74654c6074db4ab1a73cc498ba, type: 3}
+      propertyPath: _pathColor.b
+      value: 0.1254902
+      objectReference: {fileID: 0}
+    - target: {fileID: 1473803042499573982, guid: 422bdd74654c6074db4ab1a73cc498ba, type: 3}
+      propertyPath: _pathColor.g
+      value: 0.74509805
+      objectReference: {fileID: 0}
+    - target: {fileID: 1473803042499573982, guid: 422bdd74654c6074db4ab1a73cc498ba, type: 3}
+      propertyPath: _pathColor.r
+      value: 0.47058824
+      objectReference: {fileID: 0}
     - target: {fileID: 5747895630753327319, guid: 422bdd74654c6074db4ab1a73cc498ba, type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 

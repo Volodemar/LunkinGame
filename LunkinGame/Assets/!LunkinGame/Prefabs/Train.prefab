@@ -47,7 +47,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speed: 200
   speedMine: 20
-  pathColor: {r: 1, g: 1, b: 1, a: 1}
+  _pathColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &6553372033180226763
 GameObject:
   m_ObjectHideFlags: 0

@@ -6,11 +6,7 @@ public static class LevelData
 {
     private static float _totalResources;
 
-    public static float TotalResources
-    {
-        get { return _totalResources; }
-        private set { _totalResources = value; }
-    }
+    public static float TotalResources => _totalResources;
 
     public static void ModifyTotalResources(float value)
     {

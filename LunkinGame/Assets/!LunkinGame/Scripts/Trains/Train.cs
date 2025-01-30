@@ -12,7 +12,7 @@ public class Train : MonoBehaviour
     public float speed = 200f; 
     public float speedMine = 20f; 
 
-    [SerializeField] private Color pathColor;
+    [SerializeField] private Color _pathColor;
 
     private PathManager _pathManager;
     private BaseNode _currentNode;
@@ -41,10 +41,10 @@ public class Train : MonoBehaviour
         // Выбираем лучшую шахту
         _targetNode = pathManager.GetBestMineNode(_currentNode, speed, speedMine);
 
+        // Стартанули в шахте, значит майним
         Mine theMine = _currentNode as Mine;
         if (theMine != null)
-        {
-            // Стартанули в шахте, значит майним
+        {          
             StartCoroutine(WaitAtMine(theMine));
         }  
 
@@ -177,7 +177,7 @@ public class Train : MonoBehaviour
             return;
 
         // Устанавливаем цвет Gizmos на зеленый
-        Handles.color = pathColor;
+        Handles.color = _pathColor;
 
         // Толщина линии (например, 5 пикселей)
         float thickness = 5f;

@@ -21,10 +21,10 @@ public class PathManager : MonoBehaviour
     public List<Path> sections = new List<Path>(); 
 
     // Кеш нод для оптимизации
-    private List<BaseNode> cachedNodes = new List<BaseNode>();
+    private List<BaseNode> _cachedNodes = new List<BaseNode>();
 
     // Кеш всех кротчайших путей из А в Б для оптимизации
-    private Dictionary<(BaseNode, BaseNode), List<BaseNode>> pathShortCache = new Dictionary<(BaseNode, BaseNode), List<BaseNode>>();
+    private Dictionary<(BaseNode, BaseNode), List<BaseNode>> _pathShortCache = new Dictionary<(BaseNode, BaseNode), List<BaseNode>>();
 
 	GameLevelController _gameLevel;
 
@@ -41,17 +41,16 @@ public class PathManager : MonoBehaviour
 
     private void CacheAllNodes()
     {
-        cachedNodes.Clear();
+        _cachedNodes.Clear();
 
         BaseNode[] nodes = GetComponentsInChildren<BaseNode>(true);
 
-        cachedNodes.AddRange(nodes);
+        _cachedNodes.AddRange(nodes);
     }
 
     private void InitializeNodes()
     {
-        // Ноды заполняют данные о соседних нодах на основе путей графа
-        foreach(BaseNode node in cachedNodes)
+        foreach (BaseNode node in _cachedNodes)
         {
             node.Init(this);
         }
@@ -59,17 +58,17 @@ public class PathManager : MonoBehaviour
 
     private void CacheAllShortestPaths()
     {
-        pathShortCache.Clear();
+        _pathShortCache.Clear();
 
-        foreach (var startNode in cachedNodes)
+        foreach (var startNode in _cachedNodes)
         {
-            foreach (var endNode in cachedNodes)
+            foreach (var endNode in _cachedNodes)
             {
                 if (startNode != endNode)
                 {
                     List<BaseNode> shortestPath = FindShortestPath(startNode, endNode);
 
-                    pathShortCache[(startNode, endNode)] = shortestPath;
+                    _pathShortCache[(startNode, endNode)] = shortestPath;
                 }
             }
         }
@@ -113,15 +112,15 @@ public class PathManager : MonoBehaviour
         List<BaseNode> currentPath = new List<BaseNode>();
         HashSet<BaseNode> visited = new HashSet<BaseNode>();
 
-        DFS(startNode, endNode, currentPath, allPaths, visited);
+        DepthFirstSearch(startNode, endNode, currentPath, allPaths, visited);
 
         return allPaths;
     }
 
     /// <summary>
-    /// Рекурсивный метод поиска в глубину
+    /// Рекурсивный метод поиска пути в глубину
     /// </summary>
-    private void DFS(BaseNode current, BaseNode target, List<BaseNode> currentPath, List<List<BaseNode>> allPaths, HashSet<BaseNode> visited)
+    private void DepthFirstSearch(BaseNode current, BaseNode target, List<BaseNode> currentPath, List<List<BaseNode>> allPaths, HashSet<BaseNode> visited)
     {
         visited.Add(current);
         currentPath.Add(current);
@@ -143,7 +142,7 @@ public class PathManager : MonoBehaviour
             {
                 if (!visited.Contains(neighbor))
                 {
-                    DFS(neighbor, target, currentPath, allPaths, visited);
+                    DepthFirstSearch(neighbor, target, currentPath, allPaths, visited);
                 }
             }
         }
@@ -153,6 +152,31 @@ public class PathManager : MonoBehaviour
         currentPath.RemoveAt(currentPath.Count - 1);
     }
 
+    /// <summary>
+    /// Возвращает ближайшие ноды
+    /// </summary>
+    public List<BaseNode> GetNeighbors(BaseNode current)
+    {
+        List<BaseNode> neighbors = new List<BaseNode>();
+
+        foreach (var section in sections)
+        {
+            if (section.nodeA == current)
+            {
+                neighbors.Add(section.nodeB);
+            }
+            else if (section.nodeB == current)
+            {
+                neighbors.Add(section.nodeA);
+            }
+        }
+
+        return neighbors;
+    }
+
+    /// <summary>
+    /// Возвращает длину секции пути
+    /// </summary>
     public float GetPathSectionLength(BaseNode a, BaseNode b)
     {
         foreach (var section in sections)
@@ -165,6 +189,9 @@ public class PathManager : MonoBehaviour
         return float.MaxValue; 
     }
 
+    /// <summary>
+    /// Возвращает длину пути
+    /// </summary>
     public float GetFullPathLength(List<BaseNode> pathNodes)
     {
         float pathLength = 0;
@@ -176,9 +203,12 @@ public class PathManager : MonoBehaviour
         return pathLength;
     }
 
+    /// <summary>
+    /// Возвращает кратчайший путь по двум точкам, если такой имеется в кеше
+    /// </summary>
     public List<BaseNode> GetCachedShortPath(BaseNode start, BaseNode end)
     {
-        if (pathShortCache.TryGetValue((start, end), out var path))
+        if (_pathShortCache.TryGetValue((start, end), out var path))
         {
             return path;
         }
@@ -190,10 +220,10 @@ public class PathManager : MonoBehaviour
     /// </summary>
     public BaseNode GetRandomNode()
     {
-        if (cachedNodes.Count == 0) 
+        if (_cachedNodes.Count == 0) 
             return null;
 
-        return cachedNodes[Random.Range(0, cachedNodes.Count)];
+        return _cachedNodes[Random.Range(0, _cachedNodes.Count)];
     }
 
     /// <summary>
@@ -205,7 +235,7 @@ public class PathManager : MonoBehaviour
         List<Base> bases = new List<Base>();
 
         // Разделяем ноды на шахты и базы
-        foreach (BaseNode node in cachedNodes)
+        foreach (BaseNode node in _cachedNodes)
         {
             Mine currentMine = node as Mine;
             Base currentBase = node as Base;
@@ -268,12 +298,15 @@ public class PathManager : MonoBehaviour
         return bestMineNode;
     }
 
+    /// <summary>
+    /// Возвращает оптимальную базу для доставки груза из текущей позиции
+    /// </summary>
     public BaseNode GetBestBaseNode(BaseNode currentNode, float trainSpeed, float trainSpeedMine)
     {
         List<Base> bases = new List<Base>();
 
         // Получаем все базы
-        foreach (BaseNode node in cachedNodes)
+        foreach (BaseNode node in _cachedNodes)
         {
             Base currentBase = node as Base;
         
@@ -370,36 +403,5 @@ public class PathManager : MonoBehaviour
 				UnityEditor.Handles.Label(textPosition, $"{section.pathLength}", style);
 			}
 		}
-	}
-
-    /// <summary>
-    /// Выводим найденные пути в лог
-    /// </summary>
-    private void DebugLogPrintPaths(List<List<BaseNode>> paths)
-    {
-		foreach (var path in paths)
-		{
-			string pathStr = "";
-			foreach (var node in path)
-			{
-				pathStr += node.name + " -> ";
-			}
-			pathStr = pathStr.TrimEnd(' ', '-', '>');
-			Debug.Log("Путь: " + pathStr);
-		}
-	}
-
-    /// <summary>
-    /// Вывод пути в лог
-    /// </summary>
-    private void DebugLogPrintPath(List<BaseNode> path)
-    {
-		string pathStr = "";
-		foreach (var node in path)
-		{
-			pathStr += node.name + " -> ";
-		}
-		pathStr = pathStr.TrimEnd(' ', '-', '>');
-		Debug.Log("Путь: " + pathStr);
 	}
 }

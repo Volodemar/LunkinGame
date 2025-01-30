@@ -10,20 +10,6 @@ public class BaseNode : MonoBehaviour
 
 	public void Init(PathManager pathManager)
 	{
-        List<BaseNode> neighbors = new List<BaseNode>();
-
-        foreach (var section in pathManager.sections)
-        {
-            if (section.nodeA == this)
-            {
-                neighbors.Add(section.nodeB);
-            }
-            else if (section.nodeB == this)
-            {
-                neighbors.Add(section.nodeA);
-            }
-        }
-
-        neighborNodes = neighbors.ToArray();
+        neighborNodes = pathManager.GetNeighbors(this).ToArray();
 	}
 }
