@@ -84,7 +84,7 @@ public class PathManager : MonoBehaviour
             currentPathLength = 0;
             for (int i = 0; i < path.Count - 1; i++)
             {
-                currentPathLength += GetPathLength(path[i], path[i + 1]);
+                currentPathLength += GetPathSectionLength(path[i], path[i + 1]);
             }
 
             if (currentPathLength < minPathLength)
@@ -146,7 +146,7 @@ public class PathManager : MonoBehaviour
         currentPath.RemoveAt(currentPath.Count - 1);
     }
 
-    public float GetPathLength(BaseNode a, BaseNode b)
+    public float GetPathSectionLength(BaseNode a, BaseNode b)
     {
         foreach (var path in paths)
         {
@@ -156,6 +156,17 @@ public class PathManager : MonoBehaviour
             }
         }
         return float.MaxValue; 
+    }
+
+    public float GetFullPathLength(List<BaseNode> pathNodes)
+    {
+        float pathLength = 0;
+        for (int i = 0; i < pathNodes.Count - 1; i++)
+        {
+            pathLength += GetPathSectionLength(pathNodes[i], pathNodes[i + 1]);
+        }
+
+        return pathLength;
     }
 
     public List<BaseNode> GetCachedShortPath(BaseNode start, BaseNode end)
@@ -178,33 +189,147 @@ public class PathManager : MonoBehaviour
         return cachedNodes[Random.Range(0, cachedNodes.Count)];
     }
 
-    private void OnDrawGizmos()
+    /// <summary>
+    /// Возвращает оптимальную шахту для добычи текущим поездом из текущей позиции
+    /// </summary>
+    public BaseNode GetBestMineNode(BaseNode currentNode, float trainSpeed, float trainSpeedMine)
     {
-        foreach (var path in paths)
+        List<Mine> mines = new List<Mine>();
+        List<Base> bases = new List<Base>();
+
+        // Разделяем ноды на шахты и базы
+        foreach (BaseNode node in cachedNodes)
         {
-            if (path.nodeA != null && path.nodeB != null)
+            Mine currentMine = node as Mine;
+            Base currentBase = node as Base;
+        
+            if (currentMine != null)
             {
-                // Отрисовка линии между нодами
-                Gizmos.color = Color.black;
-                Gizmos.DrawLine(path.nodeA.transform.position, path.nodeB.transform.position);
-
-                // Стиль
-                GUIStyle style = new GUIStyle();
-                style.normal.textColor = Color.gray; 
-                style.fontSize = 13; 
-                style.alignment = TextAnchor.MiddleCenter;
-
-                // Рассчитываем красивую позицию текста
-                Vector3 midpoint = (path.nodeA.transform.position + path.nodeB.transform.position) / 2;
-                Vector3 lineDirection = (path.nodeB.transform.position - path.nodeA.transform.position).normalized;
-                Vector3 perpendicular = new Vector3(-lineDirection.y, lineDirection.x, lineDirection.z).normalized;
-                Vector3 textPosition = midpoint + perpendicular * 0.25f;
-
-                // Отрисовка текста с длиной пути
-                UnityEditor.Handles.Label(textPosition, $"{path.pathLength}", style);
+                mines.Add(currentMine);
+            }
+            else if(currentBase != null)
+            {
+                bases.Add(currentBase);
             }
         }
+
+        BaseNode bestMineNode = null;
+        float minDeliveryTime = float.MaxValue;
+
+        // Перебираем все шахты
+        foreach (Mine theMine in mines)
+        {
+            // Перебираем все базы
+            foreach (Base theBase in bases)
+            {
+                // Получаем путь от текущей позиции до шахты
+                List<BaseNode> pathToMine = GetCachedShortPath(currentNode, theMine);
+                float distanceToMine = GetFullPathLength(pathToMine);
+
+                // Получаем путь от шахты до базы
+                List<BaseNode> pathToBase = GetCachedShortPath(theMine, theBase);
+                float distanceToBase = GetFullPathLength(pathToBase);
+
+                // Рассчитываем общее время доставки
+                float timeToMine = distanceToMine / trainSpeed;
+                float timeMining = trainSpeedMine * theMine.miningTimeMultiplier;
+                float timeToBase = distanceToBase / trainSpeed;
+                float deliveryTime = timeToMine + timeMining + timeToBase;
+
+                // Поиск лучшего времени доставки по маршруту
+                if (deliveryTime < minDeliveryTime)
+                {
+                    minDeliveryTime = deliveryTime;
+                    bestMineNode = theMine;
+                }
+            }
+        }
+
+        // Возвращаем лучшую шахту
+        return bestMineNode;
     }
+
+    public BaseNode GetBestBaseNode(BaseNode currentNode, float trainSpeed, float trainSpeedMine)
+    {
+        List<Base> bases = new List<Base>();
+
+        // Получаем все базы
+        foreach (BaseNode node in cachedNodes)
+        {
+            Base currentBase = node as Base;
+        
+            if(currentBase != null)
+            {
+                bases.Add(currentBase);
+            }
+        }
+
+        BaseNode bestBaseNode = null;
+        float maxDeliveryEfficiency = 0;
+
+        // Перебираем все базы
+        foreach (Base theBase in bases)
+        {
+            // Получаем путь от текущей позиции до базы
+            List<BaseNode> pathToBase = GetCachedShortPath(currentNode, theBase);
+            float distanceToBase = GetFullPathLength(pathToBase);
+
+            float deliveryEfficiency = 0;
+
+            Mine theMine = currentNode as Mine;
+            if (theMine != null)
+            {
+                // Если текущая позиция это шахта то формула (эффективность доставки)
+                float timeMining = trainSpeedMine * theMine.miningTimeMultiplier;
+                float timeDelivery = (distanceToBase / trainSpeed) + timeMining;
+                deliveryEfficiency = theBase.resourceMultiplier / timeDelivery;
+            }
+            else
+            {
+                // Если поезд везет груз в середине пути то формула (эффективность доставки)
+                float timeDelivery = distanceToBase / trainSpeed;
+                deliveryEfficiency = theBase.resourceMultiplier / timeDelivery;
+            }
+
+            // Поиск лучшего времени доставки по маршруту
+            if (deliveryEfficiency > maxDeliveryEfficiency)
+            {
+                maxDeliveryEfficiency = deliveryEfficiency;
+                bestBaseNode = theBase;
+            }
+        }
+
+        // Возвращаем лучшую базу
+        return bestBaseNode;
+    }
+
+    private void OnDrawGizmos()
+    {
+		foreach (var path in paths)
+		{
+			if (path.nodeA != null && path.nodeB != null)
+			{
+				// Отрисовка линии между нодами
+				Gizmos.color = Color.black;
+				Gizmos.DrawLine(path.nodeA.transform.position, path.nodeB.transform.position);
+
+				// Стиль
+				GUIStyle style = new GUIStyle();
+				style.normal.textColor = Color.gray;
+				style.fontSize = 13;
+				style.alignment = TextAnchor.MiddleCenter;
+
+				// Рассчитываем красивую позицию текста
+				Vector3 midpoint = (path.nodeA.transform.position + path.nodeB.transform.position) / 2;
+				Vector3 lineDirection = (path.nodeB.transform.position - path.nodeA.transform.position).normalized;
+				Vector3 perpendicular = new Vector3(-lineDirection.y, lineDirection.x, lineDirection.z).normalized;
+				Vector3 textPosition = midpoint + perpendicular * 0.25f;
+
+				// Отрисовка текста с длиной пути
+				UnityEditor.Handles.Label(textPosition, $"{path.pathLength}", style);
+			}
+		}
+	}
 
     /// <summary>
     /// Выводим найденные пути в лог

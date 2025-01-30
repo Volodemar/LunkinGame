@@ -167,7 +167,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3ffa15cc91594424f92624be7e4667f9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  trainPrefab: {fileID: 1473803042499573968, guid: 422bdd74654c6074db4ab1a73cc498ba, type: 3}
+  trainPrefabs:
+  - {fileID: 212615223400865298, guid: 894c20ffb8fdde3439fed975c2fea233, type: 3}
+  - {fileID: 9011380006771090215, guid: 3f37a80bdb8929d49a06d3e9a2b69770, type: 3}
+  - {fileID: 5468860223529793276, guid: 604935d7ff6082d419356a075037de5a, type: 3}
+  testTrainPrefab: {fileID: 212615223400865298, guid: 894c20ffb8fdde3439fed975c2fea233, type: 3}
+  testStartNode: {fileID: 0}
 --- !u!1001 &282965201
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -5,6 +5,9 @@ using UnityEngine;
 /// </summary>	
 public class Mine : BaseNode
 {
+    /// <summary>
+    /// Множитель времени добычи в шахте
+    /// </summary>
     public float miningTimeMultiplier = 1f;
 
     private void OnDrawGizmos()
